@@ -1,29 +1,37 @@
 name: relief-watch
 
+# 権限（private repo でも schedule を確実化）
+permissions:
+  contents: read
+
 on:
   schedule:
-    - cron: "*/2 * * * *"          # 2分おき（UTC）
-  workflow_dispatch:               # 手動実行ボタン
+    - cron: '0 * * * *'        # 1時間ごとにジョブを起動（UTC）
+  workflow_dispatch:           # 手動実行も残す
 
 jobs:
-  check:
+  monitor:
     runs-on: ubuntu-latest
+    timeout-minutes: 62        # ← ジョブが 1h ループするので余裕を見る
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+        with: { python-version: '3.12' }
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # ▼▼▼ ここを追加 ▼▼▼
       - name: Install Playwright browsers
         run: playwright install --with-deps
-      # ▲▲▲ ここまで ▲▲▲
 
-      - name: Run RELIEF monitor
+      - name: Watch RELIEF page every 2 min for 1 h
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-        run: python relief_monitor.py
-
+        run: |
+          for i in $(seq 1 30); do
+            echo "---- $(date '+%F %T')  (#$i/30) ----"
+            python relief_monitor.py
+            sleep 120   # 2分待つ
+          done
