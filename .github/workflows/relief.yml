@@ -1,24 +1,20 @@
 name: relief-watch
 
-# 権限（private repo でも schedule を確実化）
-permissions:
-  contents: read
-
 on:
   schedule:
-    - cron: '0 * * * *'        # 1時間ごとにジョブを起動（UTC）
-  workflow_dispatch:           # 手動実行も残す
+    - cron: '0 * * * *'          # 毎時 00 分にジョブ起動（UTC）
+  workflow_dispatch:
 
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    timeout-minutes: 62        # ← ジョブが 1h ループするので余裕を見る
+    timeout-minutes: 80          # ←★① ここを 80 に伸ばす
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
+        with:
+          python-version: '3.12'
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -31,6 +27,11 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
         run: |
           for i in $(seq 1 30); do
+            echo "---- $(date '+%F %T')  (#$i/30) ----"
+            python relief_monitor.py
+            sleep 110               # ←★② ここを 110 秒に短縮
+          done
+
             echo "---- $(date '+%F %T')  (#$i/30) ----"
             python relief_monitor.py
             sleep 120   # 2分待つ
