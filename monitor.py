@@ -1,70 +1,27 @@
-import os, requests, bs4, json, pathlib, time
-from dotenv import load_dotenv 
-load_dotenv()                    
-URL = "https://ticket.pia.jp/sp/ticketInformation.do?eventCd=2523084&rlsCd=001"
-WEBHOOK = os.getenv("SLACK_WEBHOOK")
-STATUS_FILE = pathlib.Path("last_status.json")
+# relief_monitor.py  ---  RELIEF Ticket 監視
+import os, requests, time
+from dotenv import load_dotenv
 
-from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+load_dotenv()
+URL      = "https://relief-ticket.jp/events/artist/16/105"
+WEBHOOK  = os.getenv("SLACK_WEBHOOK")
+KEYWORD  = "購入手続きへ"                    # ボタン文字
+UA       = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 12_0) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/125.0.0.0 Safari/537.36")
 
-def fetch_status():
-    with sync_playwright() as p:
-        desktop_ua = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                      "AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/124.0.0.0 Safari/537.36")
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page(user_agent=desktop_ua)
-
-        # 1) LP かもしれないので最初は何でも受け止める
-        page.goto(URL, wait_until="networkidle", timeout=30000)
-
-        # 2) LP だったらリンクを踏む
-        if "lp/event.do" in page.url:
-            link = page.query_selector('a[href*="ticketInformation.do"]')
-            if link:
-                link.click()
-                page.wait_for_load_state("networkidle")
-
-        # 3) 最大 30 秒粘って HTML を取得
-        try:
-            page.wait_for_load_state("networkidle", timeout=30000)
-        except PWTimeout:
-            pass  # ネットワークが静かにならなくても続行
-
-        html = page.content()
-
-        # 4) キーワードで判定
-        if "発売中" in html:
-            status = "発売中"
-        elif "受付中" in html:
-            status = "受付中"
-        elif "予定枚数終了" in html:
-            status = "予定枚数終了"
-        else:
-            status = "unknown"
-
-        browser.close()
-        return status
-
-
-def notify(msg):
+def notify(msg: str):
     if WEBHOOK:
         requests.post(WEBHOOK, json={"text": msg}, timeout=10)
 
-def load_last():
-    if STATUS_FILE.exists():
-        return json.loads(STATUS_FILE.read_text()).get("status", "")
-    return ""
-
-def save_last(s): STATUS_FILE.write_text(json.dumps({"status": s}))
+def has_stock() -> bool:
+    html = requests.get(URL, headers={"User-Agent": UA}, timeout=15).text
+    return KEYWORD in html
 
 if __name__ == "__main__":
-    now = fetch_status()
-    print(time.strftime("%F %T"), now)
-    if now in ("発売中", "受付中"):             # monitor.py の場合
-        notify(f"🎫 販売開始！ {URL}")
-
-    # relief_monitor.py の場合
-    if now == "在庫あり":
+    status = "在庫あり" if has_stock() else "在庫なし"
+    print(time.strftime("%F %T"), status)
+    if status == "在庫あり":
         notify(f"🎫 RELIEF Ticket 販売開始！\n<{URL}|公演一覧>")
+
 
