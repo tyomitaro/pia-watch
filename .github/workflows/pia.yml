@@ -1,31 +1,30 @@
-name: pia-watch         # 好きな表示名でOK
+name: pia-watch           # ← ワークフロー名は自由に変えてOK
 
 on:
   schedule:
-    - cron: '*/2 * * * *'   # 2 分おき（最短は 1 分）
-  workflow_dispatch:        # 手動実行ボタンも付く
+    - cron: "*/2 * * * *"   # 2分おき
+  workflow_dispatch:        # 手動実行ボタン
 
 jobs:
   check:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
+        with:
+          python-version: "3.12"
 
-      # ここで依存ライブラリを入れる（←重要）
       - name: Install Python dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
 
-    　- name: Install Playwright browsers
-     run: playwright install --with-deps
+      - name: Install Playwright browsers        # ★ 追加したステップ
+        run: playwright install --with-deps      # ★ ここまで 2 行
 
-      # ★Playwright を使う場合だけ:
-      # - name: Install Playwright browsers
-      #   run: playwright install --with-deps
-
-      - env:
+      - name: Run monitors
+        env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
         run: |
           python monitor.py
