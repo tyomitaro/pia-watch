@@ -59,15 +59,12 @@ def load_last():
 def save_last(s): STATUS_FILE.write_text(json.dumps({"status": s}))
 
 if __name__ == "__main__":
-    last = load_last()
-    while True:
-        try:
-            now = fetch_status()
-            print(time.strftime("%F %T"), now)
-            if now != last and now in ("発売中", "受付中"):
-                notify(f"🎫 販売開始！ {URL}")
-            last = now
-            save_last(last)
-        except Exception as e:
-            print("ERROR:", e)
-        time.sleep(60)
+    now = fetch_status()
+    print(time.strftime("%F %T"), now)
+    if now in ("発売中", "受付中"):             # monitor.py の場合
+        notify(f"🎫 販売開始！ {URL}")
+
+    # relief_monitor.py の場合
+    if now == "在庫あり":
+        notify(f"🎫 RELIEF Ticket 販売開始！\n<{URL}|公演一覧>")
+
