@@ -2,9 +2,9 @@ name: relief-watch
 
 on:
   schedule:
-    - cron: "*/2 * * * *"   # ← 2分おき（UTC）
-  workflow_dispatch:        # ← 手動実行ボタン
-  
+    - cron: "*/2 * * * *"          # 2分おき（UTC）
+  workflow_dispatch:               # 手動実行ボタン
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -17,7 +17,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # ▼▼▼ ここを追加 ▼▼▼
+      - name: Install Playwright browsers
+        run: playwright install --with-deps
+      # ▲▲▲ ここまで ▲▲▲
+
       - name: Run RELIEF monitor
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
         run: python relief_monitor.py
+
