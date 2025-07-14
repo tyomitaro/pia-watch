@@ -1,0 +1,23 @@
+name: pia-watch         # 好きな表示名でOK
+
+on:
+  schedule:
+    - cron: '*/2 * * * *'   # 2 分おき（最短は 1 分）
+  workflow_dispatch:        # 手動実行ボタンも付く
+
+jobs:
+  check:
+    runs-on: ubuntu-latest  # GitHub が用意する仮想マシン
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install -r requirements.txt
+
+      - env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: python monitor.py
